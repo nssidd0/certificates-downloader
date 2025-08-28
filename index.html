@@ -34,19 +34,22 @@
       const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
       const json = JSON.parse(jsonStr);
       const rows = json?.table?.rows || [];
-      
-      const data = rows.map(r => ({
-        id: r.c[0]?.v?.trim() || "",
-        name: r.c[2]?.v?.trim() || "",
-        file: r.c[3]?.v?.trim() || ""
-      })).filter(item => item.id && item.name && item.file);
+
+      // Remove header row (first row)
+      const data = rows
+        .slice(1)
+        .map(r => ({
+          id: r.c[0]?.v?.trim() || "",
+          name: r.c[2]?.v?.trim() || "",
+          file: r.c[3]?.v?.trim() || ""
+        }))
+        .filter(item => item.id && item.name && item.file);
 
       console.log("Fetched rows:", data);
       return data;
     }
 
     function populateDropdowns(data) {
-      console.log("populateDropdowns called with:", data);
       const idSelect = document.getElementById("studentId");
       const nameSelect = document.getElementById("studentName");
 
@@ -57,7 +60,6 @@
       window.certificateData = data;
 
       const uniqueIds = [...new Set(data.map(item => item.id))];
-      console.log("Unique IDs:", uniqueIds);
 
       uniqueIds.forEach(id => {
         const opt = document.createElement("option");
@@ -68,8 +70,6 @@
 
       idSelect.addEventListener("change", () => {
         const selectedId = idSelect.value;
-        console.log("ID selected:", selectedId);
-
         const filtered = data.filter(item => item.id === selectedId);
         nameSelect.innerHTML = '<option value="">-- Select Name --</option>';
         nameSelect.disabled = filtered.length === 0;
@@ -84,16 +84,13 @@
         toggleDownloadBtn();
       });
 
-      nameSelect.addEventListener("change", () => {
-        console.log("Name selected:", nameSelect.value);
-        toggleDownloadBtn();
-      });
+      nameSelect.addEventListener("change", toggleDownloadBtn);
     }
 
     function toggleDownloadBtn() {
-      const idVal = document.getElementById("studentId").value;
-      const nameVal = document.getElementById("studentName").value;
-      document.getElementById("downloadBtn").disabled = !(idVal && nameVal);
+      const id = document.getElementById("studentId").value;
+      const name = document.getElementById("studentName").value;
+      document.getElementById("downloadBtn").disabled = !(id && name);
     }
 
     function setupDownload() {
@@ -102,16 +99,12 @@
         const name = document.getElementById("studentName").value.trim();
         const matched = window.certificateData.find(i => i.id === id && i.name === name);
 
-        console.log("Download attempt for:", matched);
-
         if (!matched || !matched.file) {
           alert("Invalid selection or certificate file missing!");
           return;
         }
 
         const filePath = `certificates/${encodeURIComponent(matched.file)}`;
-        console.log("File download path:", filePath);
-
         const link = document.createElement("a");
         link.href = filePath;
         link.download = matched.file;
