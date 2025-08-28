@@ -4,10 +4,28 @@
   <meta charset="UTF-8" />
   <title>Certificate Download</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; max-width: 500px; margin: auto; }
-    label, select, button { margin: 10px 0; display: block; width: 100%; padding: 10px; }
-    button { background-color: #007BFF; color: white; border: none; cursor: pointer; }
-    button:disabled { background-color: #ccc; cursor: not‑allowed; }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 500px;
+      margin: auto;
+    }
+    label, select, button {
+      margin: 10px 0;
+      display: block;
+      width: 100%;
+      padding: 10px;
+    }
+    button {
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body>
@@ -29,33 +47,30 @@
     async function fetchSheetData() {
       const sheetID = "1dtaiWm-uRnQ1nvO3eMPYQ01No_znv-5_YKP6-akKoPs";
       const url = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?tqx=out:json`;
-      const response = await fetch(url);
-      const text = await response.text();
 
-      const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
-      const json = JSON.parse(jsonStr);
-      const rows = json?.table?.rows || [];
+      try {
+        const response = await fetch(url);
+        const text = await response.text();
+        const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
+        const json = JSON.parse(jsonStr);
+        const rows = json?.table?.rows || [];
 
-      if (!rows.length) {
-        console.error("Google Sheet returned no rows.");
+        const data = rows.map(r => ({
+          id: r.c[0]?.v?.trim() || "",
+          name: r.c[1]?.v?.trim() || "",
+          file: r.c[2]?.v?.trim() || ""
+        })).filter(item => item.id && item.name && item.file);
+
+        console.log("Fetched Data:", data);
+        return data;
+      } catch (error) {
+        console.error("Error fetching sheet data:", error);
+        alert("Failed to fetch data from Google Sheet.");
         return [];
       }
-
-      // Remove the header row
-      const dataRows = rows.slice(1);
-
-      const data = dataRows.map(r => ({
-        id: r.c[0]?.v?.trim() || "",
-        name: r.c[2]?.v?.trim() || "",
-        file: r.c[3]?.v?.trim() || ""
-      })).filter(item => item.id && item.name && item.file);
-
-      console.log("Fetched Data (post-filter):", data);
-      return data;
     }
 
     function populateDropdowns(data) {
-      console.log("populateDropdowns called with:", data);
       const idSelect = document.getElementById("studentId");
       const nameSelect = document.getElementById("studentName");
 
@@ -66,7 +81,6 @@
       window.certificateData = data;
 
       const uniqueIds = [...new Set(data.map(item => item.id))];
-      console.log("Unique IDs to populate:", uniqueIds);
 
       uniqueIds.forEach(id => {
         const opt = document.createElement("option");
@@ -77,9 +91,8 @@
 
       idSelect.addEventListener("change", () => {
         const selectedId = idSelect.value;
-        console.log("ID selected:", selectedId);
-
         const filtered = data.filter(item => item.id === selectedId);
+
         nameSelect.innerHTML = '<option value="">-- Select Name --</option>';
         nameSelect.disabled = filtered.length === 0;
 
@@ -89,13 +102,11 @@
           opt.textContent = item.name;
           nameSelect.appendChild(opt);
         });
+
         toggleDownloadBtn();
       });
 
-      nameSelect.addEventListener("change", () => {
-        console.log("Name selected:", nameSelect.value);
-        toggleDownloadBtn();
-      });
+      nameSelect.addEventListener("change", toggleDownloadBtn);
     }
 
     function toggleDownloadBtn() {
@@ -116,8 +127,6 @@
         }
 
         const filePath = `certificates/${encodeURIComponent(matched.file)}`;
-        console.log("Attempting download:", filePath);
-
         const link = document.createElement("a");
         link.href = filePath;
         link.download = matched.file;
@@ -126,14 +135,12 @@
       });
     }
 
+    // Initialize the app
     (async () => {
-      try {
-        const data = await fetchSheetData();
+      const data = await fetchSheetData();
+      if (data.length) {
         populateDropdowns(data);
         setupDownload();
-      } catch (error) {
-        console.error("Initialization error:", error);
-        alert("Something went wrong. Check console logs.");
       }
     })();
   </script>
