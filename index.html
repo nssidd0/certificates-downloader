@@ -27,58 +27,51 @@
 
   <script>
     async function fetchSheetData() {
-  const sheetID = "1dtaiWm-uRnQ1nvO3eMPYQ01No_znv-5_YKP6-akKoPs";
-  const url = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?tqx=out:json`;
+      const sheetID = "1dtaiWm-uRnQ1nvO3eMPYQ01No_znv-5_YKP6-akKoPs";
+      const url = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?tqx=out:json`;
 
-  const response = await fetch(url);
-  const text = await response.text();
+      const response = await fetch(url);
+      const text = await response.text();
+      const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
+      const json = JSON.parse(jsonStr);
 
-  // Extract JSON data between parentheses
-  const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
-  const json = JSON.parse(jsonStr);
+      const rows = json.table.rows;
 
-  const rows = json.table.rows;
-
-  // Map rows into usable data and filter out invalid rows
-  return rows
-    .map(row => ({
-      id: row.c[0]?.v || "",
-      name: row.c[2]?.v || "",
-      file: row.c[3]?.v || ""
-    }))
-    .filter(item => item.id && item.name && item.file); // Ensure all fields present
-}
-
+      return rows
+        .map(row => ({
+          id: row.c[0]?.v?.trim() || "",
+          name: row.c[2]?.v?.trim() || "",
+          file: row.c[3]?.v?.trim() || ""
+        }))
+        .filter(item => item.id && item.name && item.file);
+    }
 
     function populateDropdowns(data) {
       const idSelect = document.getElementById("studentId");
       const nameSelect = document.getElementById("studentName");
 
-      idSelect.length = 1;  // Clear except placeholder
+      idSelect.length = 1;
       nameSelect.length = 1;
-      nameSelect.disabled = true;  // Disable name select until ID selected
+      nameSelect.disabled = true;
 
-      // Store data globally to use on change event
       window.certificateData = data;
 
-      data.forEach(item => {
+      const uniqueIds = [...new Set(data.map(item => item.id))];
+      uniqueIds.forEach(id => {
         const optId = document.createElement("option");
-        optId.value = item.id;
-        optId.textContent = item.id;
+        optId.value = id;
+        optId.textContent = id;
         idSelect.appendChild(optId);
       });
 
       idSelect.addEventListener("change", () => {
         const selectedId = idSelect.value;
+        const filtered = data.filter(item => item.id === selectedId);
 
-        // Filter names matching selected ID
-        const filteredNames = data.filter(item => item.id === selectedId);
+        nameSelect.innerHTML = '<option value="">-- Select Name --</option>';
+        nameSelect.disabled = filtered.length === 0;
 
-        // Clear name dropdown & disable if no selection
-        nameSelect.length = 1;
-        nameSelect.disabled = filteredNames.length === 0;
-
-        filteredNames.forEach(item => {
+        filtered.forEach(item => {
           const optName = document.createElement("option");
           optName.value = item.name;
           optName.textContent = item.name;
@@ -99,8 +92,8 @@
 
     function setupDownload() {
       document.getElementById("downloadBtn").addEventListener("click", () => {
-        const id = document.getElementById("studentId").value;
-        const name = document.getElementById("studentName").value;
+        const id = document.getElementById("studentId").value.trim();
+        const name = document.getElementById("studentName").value.trim();
 
         const matched = window.certificateData.find(item => item.id === id && item.name === name);
 
@@ -109,24 +102,12 @@
           return;
         }
 
+        // Debug: check filename and URL
+        console.log("Downloading file:", matched.file);
+
         const link = document.createElement("a");
-        link.href = `certificates/${matched.file}`;
+        link.href = `certificates/${encodeURIComponent(matched.file)}`;
         link.download = matched.file;
         link.target = "_blank";
         link.click();
-      });
-    }
-
-    (async function init() {
-      try {
-        const data = await fetchSheetData();
-        populateDropdowns(data);
-        setupDownload();
-      } catch (error) {
-        console.error("Error fetching or processing data:", error);
-        alert("Failed to load data. Please try again later.");
-      }
-    })();
-  </script>
-</body>
-</html>
+      })
