@@ -27,23 +27,28 @@
 
   <script>
     async function fetchSheetData() {
-      const sheetID = "1dtaiWm-uRnQ1nvO3eMPYQ01No_znv-5_YKP6-akKoPs";
-      const url = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?tqx=out:json`;
+  const sheetID = "1dtaiWm-uRnQ1nvO3eMPYQ01No_znv-5_YKP6-akKoPs";
+  const url = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?tqx=out:json`;
 
-      const response = await fetch(url);
-      const text = await response.text();
+  const response = await fetch(url);
+  const text = await response.text();
 
-      // Use regex to safely extract JSON from Google Sheets response
-      const jsonText = text.match(/google\.visualization\.Query\.setResponse\((.*)\);/s)[1];
-      const json = JSON.parse(jsonText);
-      const rows = json.table.rows;
+  // Extract JSON data between parentheses
+  const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
+  const json = JSON.parse(jsonStr);
 
-      return rows.map(row => ({
-        id: row.c[0]?.v || "",
-        name: row.c[2]?.v || "",
-        file: row.c[3]?.v || ""
-      })).filter(item => item.id && item.name);  // Filter out rows missing ID or name
-    }
+  const rows = json.table.rows;
+
+  // Map rows into usable data and filter out invalid rows
+  return rows
+    .map(row => ({
+      id: row.c[0]?.v || "",
+      name: row.c[2]?.v || "",
+      file: row.c[3]?.v || ""
+    }))
+    .filter(item => item.id && item.name && item.file); // Ensure all fields present
+}
+
 
     function populateDropdowns(data) {
       const idSelect = document.getElementById("studentId");
@@ -125,3 +130,4 @@
   </script>
 </body>
 </html>
+
