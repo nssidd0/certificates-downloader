@@ -37,9 +37,9 @@
       const rows = json.table.rows;
 
       return rows.map(row => ({
-        id: row.c[0]?.v,       // Column A - Student ID
-        name: row.c[2]?.v,     // Column C - Student Name
-        file: row.c[3]?.v      // Column D - Certificate filename (PDF)
+        id: row.c[0]?.v,
+        name: row.c[2]?.v,
+        file: row.c[3]?.v
       }));
     }
 
@@ -47,11 +47,9 @@
       const idSelect = document.getElementById("studentId");
       const nameSelect = document.getElementById("studentName");
 
-      // Clear any previous options except placeholder
       idSelect.length = 1;
       nameSelect.length = 1;
 
-      // Populate Student IDs and Names from data
       data.forEach(item => {
         const optId = document.createElement("option");
         optId.value = item.id;
@@ -64,10 +62,10 @@
         nameSelect.appendChild(optName);
       });
 
-      // Disable download button until both selected
       idSelect.addEventListener("change", () => {
         document.getElementById("downloadBtn").disabled = true;
       });
+
       nameSelect.addEventListener("change", () => {
         const id = idSelect.value;
         const name = nameSelect.value;
@@ -80,9 +78,7 @@
         const id = document.getElementById("studentId").value;
         const name = document.getElementById("studentName").value;
 
-        const matched = data.find(
-          item => item.id === id && item.name === name
-        );
+        const matched = data.find(item => item.id === id && item.name === name);
 
         if (!matched || !matched.file) {
           alert("Invalid selection or certificate file missing!");
