@@ -18,8 +18,10 @@
     <option value="">-- Select ID --</option>
   </select>
 
-  <label for="studentName">Student Name:</label>
-  <input type="text" id="studentName" disabled style="width:100%; padding:10px;" />
+  <label for="studentName">Select Student Name:</label>
+  <select id="studentName" disabled>
+    <option value="">-- Select Name --</option>
+  </select>
 
   <button id="downloadBtn" disabled>Download Certificate</button>
 
@@ -30,63 +32,73 @@
 
       const response = await fetch(url);
       const text = await response.text();
-      const json = JSON.parse(text.substr(47).slice(0, -2));
 
+      // Use regex to safely extract JSON from Google Sheets response
+      const jsonText = text.match(/google\.visualization\.Query\.setResponse\((.*)\);/s)[1];
+      const json = JSON.parse(jsonText);
       const rows = json.table.rows;
 
-      // Remove header row (if present) or filter invalid rows
-      return rows
-        .filter(row => row.c[0]?.v && row.c[2]?.v && row.c[3]?.v) // Ensure all fields exist
-        .map(row => ({
-          id: row.c[0].v.trim(),
-          name: row.c[2].v.trim(),
-          file: row.c[3].v.trim()
-        }));
+      return rows.map(row => ({
+        id: row.c[0]?.v || "",
+        name: row.c[2]?.v || "",
+        file: row.c[3]?.v || ""
+      })).filter(item => item.id && item.name);  // Filter out rows missing ID or name
     }
 
-    function populateDropdown(data) {
+    function populateDropdowns(data) {
       const idSelect = document.getElementById("studentId");
-      idSelect.length = 1; // Keep placeholder
+      const nameSelect = document.getElementById("studentName");
+
+      idSelect.length = 1;  // Clear except placeholder
+      nameSelect.length = 1;
+      nameSelect.disabled = true;  // Disable name select until ID selected
+
+      // Store data globally to use on change event
+      window.certificateData = data;
 
       data.forEach(item => {
-        const opt = document.createElement("option");
-        opt.value = item.id;
-        opt.textContent = item.id;
-        idSelect.appendChild(opt);
+        const optId = document.createElement("option");
+        optId.value = item.id;
+        optId.textContent = item.id;
+        idSelect.appendChild(optId);
       });
-    }
-
-    function setupInteractions(data) {
-      const idSelect = document.getElementById("studentId");
-      const nameInput = document.getElementById("studentName");
-      const downloadBtn = document.getElementById("downloadBtn");
 
       idSelect.addEventListener("change", () => {
         const selectedId = idSelect.value;
-        if (!selectedId) {
-          nameInput.value = "";
-          downloadBtn.disabled = true;
-          return;
-        }
 
-        const matched = data.find(item => item.id === selectedId);
-        if (matched) {
-          nameInput.value = matched.name;
-          downloadBtn.disabled = false;
-        } else {
-          nameInput.value = "";
-          downloadBtn.disabled = true;
-        }
+        // Filter names matching selected ID
+        const filteredNames = data.filter(item => item.id === selectedId);
+
+        // Clear name dropdown & disable if no selection
+        nameSelect.length = 1;
+        nameSelect.disabled = filteredNames.length === 0;
+
+        filteredNames.forEach(item => {
+          const optName = document.createElement("option");
+          optName.value = item.name;
+          optName.textContent = item.name;
+          nameSelect.appendChild(optName);
+        });
+
+        toggleDownloadBtn();
       });
 
-      downloadBtn.addEventListener("click", () => {
-        const selectedId = idSelect.value;
-        if (!selectedId) {
-          alert("Please select a Student ID.");
-          return;
-        }
+      nameSelect.addEventListener("change", toggleDownloadBtn);
+    }
 
-        const matched = data.find(item => item.id === selectedId);
+    function toggleDownloadBtn() {
+      const id = document.getElementById("studentId").value;
+      const name = document.getElementById("studentName").value;
+      document.getElementById("downloadBtn").disabled = !(id && name);
+    }
+
+    function setupDownload() {
+      document.getElementById("downloadBtn").addEventListener("click", () => {
+        const id = document.getElementById("studentId").value;
+        const name = document.getElementById("studentName").value;
+
+        const matched = window.certificateData.find(item => item.id === id && item.name === name);
+
         if (!matched || !matched.file) {
           alert("Invalid selection or certificate file missing!");
           return;
@@ -101,11 +113,15 @@
     }
 
     (async function init() {
-      const data = await fetchSheetData();
-      populateDropdown(data);
-      setupInteractions(data);
+      try {
+        const data = await fetchSheetData();
+        populateDropdowns(data);
+        setupDownload();
+      } catch (error) {
+        console.error("Error fetching or processing data:", error);
+        alert("Failed to load data. Please try again later.");
+      }
     })();
   </script>
 </body>
 </html>
-
