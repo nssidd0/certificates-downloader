@@ -18,10 +18,8 @@
     <option value="">-- Select ID --</option>
   </select>
 
-  <label for="studentName">Select Student Name:</label>
-  <select id="studentName">
-    <option value="">-- Select Name --</option>
-  </select>
+  <label for="studentName">Student Name:</label>
+  <input type="text" id="studentName" disabled style="width:100%; padding:10px;" />
 
   <button id="downloadBtn" disabled>Download Certificate</button>
 
@@ -36,50 +34,59 @@
 
       const rows = json.table.rows;
 
-      return rows.map(row => ({
-        id: row.c[0]?.v,
-        name: row.c[2]?.v,
-        file: row.c[3]?.v
-      }));
+      // Remove header row (if present) or filter invalid rows
+      return rows
+        .filter(row => row.c[0]?.v && row.c[2]?.v && row.c[3]?.v) // Ensure all fields exist
+        .map(row => ({
+          id: row.c[0].v.trim(),
+          name: row.c[2].v.trim(),
+          file: row.c[3].v.trim()
+        }));
     }
 
-    function populateDropdowns(data) {
+    function populateDropdown(data) {
       const idSelect = document.getElementById("studentId");
-      const nameSelect = document.getElementById("studentName");
-
-      idSelect.length = 1;
-      nameSelect.length = 1;
+      idSelect.length = 1; // Keep placeholder
 
       data.forEach(item => {
-        const optId = document.createElement("option");
-        optId.value = item.id;
-        optId.textContent = item.id;
-        idSelect.appendChild(optId);
-
-        const optName = document.createElement("option");
-        optName.value = item.name;
-        optName.textContent = item.name;
-        nameSelect.appendChild(optName);
-      });
-
-      idSelect.addEventListener("change", () => {
-        document.getElementById("downloadBtn").disabled = true;
-      });
-
-      nameSelect.addEventListener("change", () => {
-        const id = idSelect.value;
-        const name = nameSelect.value;
-        document.getElementById("downloadBtn").disabled = !(id && name);
+        const opt = document.createElement("option");
+        opt.value = item.id;
+        opt.textContent = item.id;
+        idSelect.appendChild(opt);
       });
     }
 
-    function setupDownload(data) {
-      document.getElementById("downloadBtn").addEventListener("click", () => {
-        const id = document.getElementById("studentId").value;
-        const name = document.getElementById("studentName").value;
+    function setupInteractions(data) {
+      const idSelect = document.getElementById("studentId");
+      const nameInput = document.getElementById("studentName");
+      const downloadBtn = document.getElementById("downloadBtn");
 
-        const matched = data.find(item => item.id === id && item.name === name);
+      idSelect.addEventListener("change", () => {
+        const selectedId = idSelect.value;
+        if (!selectedId) {
+          nameInput.value = "";
+          downloadBtn.disabled = true;
+          return;
+        }
 
+        const matched = data.find(item => item.id === selectedId);
+        if (matched) {
+          nameInput.value = matched.name;
+          downloadBtn.disabled = false;
+        } else {
+          nameInput.value = "";
+          downloadBtn.disabled = true;
+        }
+      });
+
+      downloadBtn.addEventListener("click", () => {
+        const selectedId = idSelect.value;
+        if (!selectedId) {
+          alert("Please select a Student ID.");
+          return;
+        }
+
+        const matched = data.find(item => item.id === selectedId);
         if (!matched || !matched.file) {
           alert("Invalid selection or certificate file missing!");
           return;
@@ -95,11 +102,9 @@
 
     (async function init() {
       const data = await fetchSheetData();
-      populateDropdowns(data);
-      setupDownload(data);
+      populateDropdown(data);
+      setupInteractions(data);
     })();
   </script>
 </body>
 </html>
-
-
