@@ -29,24 +29,24 @@
     async function fetchSheetData() {
       const sheetID = "1dtaiWm-uRnQ1nvO3eMPYQ01No_znv-5_YKP6-akKoPs";
       const url = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?tqx=out:json`;
-
-      const response = await fetch(url);
-      const text = await response.text();
+      const res = await fetch(url);
+      const text = await res.text();
       const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
       const json = JSON.parse(jsonStr);
+      const rows = json?.table?.rows || [];
+      
+      const data = rows.map(r => ({
+        id: r.c[0]?.v?.trim() || "",
+        name: r.c[2]?.v?.trim() || "",
+        file: r.c[3]?.v?.trim() || ""
+      })).filter(item => item.id && item.name && item.file);
 
-      const rows = json.table.rows;
-
-      return rows
-        .map(row => ({
-          id: row.c[0]?.v?.trim() || "",
-          name: row.c[2]?.v?.trim() || "",
-          file: row.c[3]?.v?.trim() || ""
-        }))
-        .filter(item => item.id && item.name && item.file);
+      console.log("Fetched rows:", data);
+      return data;
     }
 
     function populateDropdowns(data) {
+      console.log("populateDropdowns called with:", data);
       const idSelect = document.getElementById("studentId");
       const nameSelect = document.getElementById("studentName");
 
@@ -57,57 +57,79 @@
       window.certificateData = data;
 
       const uniqueIds = [...new Set(data.map(item => item.id))];
+      console.log("Unique IDs:", uniqueIds);
+
       uniqueIds.forEach(id => {
-        const optId = document.createElement("option");
-        optId.value = id;
-        optId.textContent = id;
-        idSelect.appendChild(optId);
+        const opt = document.createElement("option");
+        opt.value = id;
+        opt.textContent = id;
+        idSelect.appendChild(opt);
       });
 
       idSelect.addEventListener("change", () => {
         const selectedId = idSelect.value;
-        const filtered = data.filter(item => item.id === selectedId);
+        console.log("ID selected:", selectedId);
 
+        const filtered = data.filter(item => item.id === selectedId);
         nameSelect.innerHTML = '<option value="">-- Select Name --</option>';
         nameSelect.disabled = filtered.length === 0;
 
         filtered.forEach(item => {
-          const optName = document.createElement("option");
-          optName.value = item.name;
-          optName.textContent = item.name;
-          nameSelect.appendChild(optName);
+          const opt = document.createElement("option");
+          opt.value = item.name;
+          opt.textContent = item.name;
+          nameSelect.appendChild(opt);
         });
 
         toggleDownloadBtn();
       });
 
-      nameSelect.addEventListener("change", toggleDownloadBtn);
+      nameSelect.addEventListener("change", () => {
+        console.log("Name selected:", nameSelect.value);
+        toggleDownloadBtn();
+      });
     }
 
     function toggleDownloadBtn() {
-      const id = document.getElementById("studentId").value;
-      const name = document.getElementById("studentName").value;
-      document.getElementById("downloadBtn").disabled = !(id && name);
+      const idVal = document.getElementById("studentId").value;
+      const nameVal = document.getElementById("studentName").value;
+      document.getElementById("downloadBtn").disabled = !(idVal && nameVal);
     }
 
     function setupDownload() {
       document.getElementById("downloadBtn").addEventListener("click", () => {
         const id = document.getElementById("studentId").value.trim();
         const name = document.getElementById("studentName").value.trim();
+        const matched = window.certificateData.find(i => i.id === id && i.name === name);
 
-        const matched = window.certificateData.find(item => item.id === id && item.name === name);
+        console.log("Download attempt for:", matched);
 
         if (!matched || !matched.file) {
           alert("Invalid selection or certificate file missing!");
           return;
         }
 
-        // Debug: check filename and URL
-        console.log("Downloading file:", matched.file);
+        const filePath = `certificates/${encodeURIComponent(matched.file)}`;
+        console.log("File download path:", filePath);
 
         const link = document.createElement("a");
-        link.href = `certificates/${encodeURIComponent(matched.file)}`;
+        link.href = filePath;
         link.download = matched.file;
         link.target = "_blank";
         link.click();
-      })
+      });
+    }
+
+    (async () => {
+      try {
+        const data = await fetchSheetData();
+        populateDropdowns(data);
+        setupDownload();
+      } catch (e) {
+        console.error("Error in init:", e);
+        alert("Failed to load data — please try again later.");
+      }
+    })();
+  </script>
+</body>
+</html>
