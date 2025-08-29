@@ -1,24 +1,88 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- ... same head as before ... -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Certificate Download</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- jQuery (Required for Select2) -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <!-- Select2 CSS + JS -->
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
   <style>
-    /* ... same CSS ... */
-    /* Add style for uniqueCode input */
-    #uniqueCode {
-      width: 100%;
-      padding: 12px;
-      margin-bottom: 15px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      font-size: 15px;
-      box-sizing: border-box;
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #dbeafe, #eff6ff);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
     }
+    .container {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+      border-radius: 15px;
+      padding: 30px;
+      width: 100%;
+      max-width: 500px;
+      text-align: center;
+      animation: fadeIn 0.8s ease-in;
+    }
+    @keyframes fadeIn {
+      from {opacity: 0; transform: translateY(20px);}
+      to {opacity: 1; transform: translateY(0);}
+    }
+    img.logo {
+      max-width: 150px;
+      margin-bottom: 1px;
+    }
+    h2 { font-weight: 600; margin-top: 0; margin-bottom: 5px; }
+    label { display: block; margin: 10px 0 5px; text-align: left; }
+    select, input[type="text"], button {
+      width: 100%; padding: 12px; margin-bottom: 15px;
+      border-radius: 8px; border: 1px solid #ccc; font-size: 15px;
+    }
+    input[type="text"] {
+      font-family: 'Poppins', sans-serif;
+    }
+    button {
+      background: #2b3577; color: white;
+      border: none; transition: background 0.3s;
+    }
+    button:hover { background: #2b2d77; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    .lottie { height: 100px; margin-bottom: 20px; }
+    .btn-reset {
+      background: #cd203a;
+      color: white;
+    }
+    .btn-reset:hover {
+      background: #cd2029;
+    }
+    #loadingLottie {
+      width: 120px;
+      margin: 0 auto 15px;
+    }
+    @media (max-width: 600px) { .container { padding: 20px; } }
   </style>
 </head>
 <body>
   <div class="container">
-    <!-- ... same UI elements ... -->
+    <img src="IMG_20250829_093134.png" alt="Institute Logo" class="logo" />
+    <h2>🎓 Certificate Download Portal</h2>
+    <div id="loadingLottie">
+      <lottie-player src="https://assets1.lottiefiles.com/packages/lf20_usmfx6bp.json" background="transparent" speed="1" loop autoplay></lottie-player>
+    </div>
 
     <label for="studentId">Select Student ID:</label>
     <select id="studentId"><option value="">-- Select ID --</option></select>
@@ -26,7 +90,6 @@
     <label for="studentName">Select Student Name:</label>
     <select id="studentName" disabled><option value="">-- Select Name --</option></select>
 
-    <!-- New unique code input field -->
     <label for="uniqueCode">Enter Your Unique Code:</label>
     <input type="text" id="uniqueCode" placeholder="Enter your unique code" disabled />
 
@@ -47,8 +110,8 @@
           id: r.c[0]?.v?.trim() || "",
           name: r.c[1]?.v?.trim() || "",
           file: r.c[2]?.v?.trim() || "",
-          code: r.c[3]?.v?.trim() || ""  // new column for unique code
-        })).filter(i => i.id && i.name && i.file && i.code);
+          uniqueCode: r.c[3]?.v?.trim() || ""  // Added unique code from 4th column
+        })).filter(i => i.id && i.name && i.file && i.uniqueCode);
       } catch(err) {
         console.error(err);
         const result = await Swal.fire({
@@ -74,7 +137,7 @@
       data.map(i => i.id).filter((v, i, a) => a.indexOf(v) === i)
         .forEach(id => idSelect.append(new Option(id, id)));
 
-      // Initialize Select2
+      // Initialize Select2 after populating
       $(idSelect).select2({
         placeholder: "-- Select ID --",
         width: '100%'
@@ -85,26 +148,25 @@
         const filtered = data.filter(i => i.id.toLowerCase() === selectedId);
         nameSelect.innerHTML = '<option value="">-- Select Name --</option>';
         nameSelect.disabled = !filtered.length;
+        uniqueCodeInput.value = '';
+        uniqueCodeInput.disabled = !filtered.length;
+
         filtered.forEach(item => nameSelect.append(new Option(item.name, item.name)));
 
         if (filtered.length === 1) {
           nameSelect.value = filtered[0].name;
         }
 
-        uniqueCodeInput.value = '';
-        uniqueCodeInput.disabled = true; // reset unique code input
-
         toggleButton();
       };
 
       nameSelect.onchange = () => {
-        if (nameSelect.value) {
-          uniqueCodeInput.disabled = false; // enable code input only if name selected
-          uniqueCodeInput.value = '';
-        } else {
-          uniqueCodeInput.disabled = true;
-          uniqueCodeInput.value = '';
-        }
+        const selectedId = idSelect.value.toLowerCase();
+        const selectedName = nameSelect.value.toLowerCase();
+
+        // Enable uniqueCode input only if both ID and Name are selected
+        uniqueCodeInput.disabled = !(selectedId && selectedName);
+
         toggleButton();
       };
 
@@ -114,32 +176,31 @@
     function toggleButton() {
       const id = document.getElementById('studentId').value.trim().toLowerCase();
       const name = document.getElementById('studentName').value.trim().toLowerCase();
-      const code = document.getElementById('uniqueCode').value.trim();
-      const downloadBtn = document.getElementById('downloadBtn');
+      const uniqueCode = document.getElementById('uniqueCode').value.trim();
 
       const match = window.certData?.find(i =>
         i.id.toLowerCase() === id &&
         i.name.toLowerCase() === name &&
-        i.code === code
+        i.uniqueCode === uniqueCode
       );
 
-      downloadBtn.disabled = !(id && name && code && match);
+      document.getElementById('downloadBtn').disabled = !(id && name && uniqueCode && match);
     }
 
     function setupDownload() {
       document.getElementById('downloadBtn').onclick = async () => {
         const id = document.getElementById('studentId').value.trim();
         const name = document.getElementById('studentName').value.trim();
-        const code = document.getElementById('uniqueCode').value.trim();
+        const uniqueCode = document.getElementById('uniqueCode').value.trim();
 
         const match = window.certData.find(i =>
           i.id.toLowerCase() === id.toLowerCase() &&
           i.name.toLowerCase() === name.toLowerCase() &&
-          i.code === code
+          i.uniqueCode === uniqueCode
         );
 
         if (!match) {
-          Swal.fire('Invalid Details', 'Selected ID, Name or Unique Code is incorrect.', 'error');
+          Swal.fire('Mismatch', 'Selected ID, Name or Unique Code do not match.', 'error');
           return;
         }
 
@@ -192,8 +253,11 @@
         $('#studentId').val('').trigger('change'); // reset Select2
         document.getElementById('studentName').innerHTML = '<option value="">-- Select Name --</option>';
         document.getElementById('studentName').disabled = true;
-        document.getElementById('uniqueCode').value = '';
-        document.getElementById('uniqueCode').disabled = true;
+
+        const uniqueCodeInput = document.getElementById('uniqueCode');
+        uniqueCodeInput.value = '';
+        uniqueCodeInput.disabled = true;
+
         document.getElementById('downloadBtn').disabled = true;
       };
     }
