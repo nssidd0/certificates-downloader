@@ -1,3 +1,4 @@
+<!-- 🔽 Ye puri file updated hai: -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -180,7 +181,9 @@
           return;
         }
 
-        // Show Lottie animation using SweetAlert
+        const filePath = `certificates/${encodeURIComponent(matched.file)}`;
+
+        // 🔽 Step 1: Show download animation
         Swal.fire({
           title: 'Downloading...',
           html: `<lottie-player class="lottie" src="https://assets10.lottiefiles.com/packages/lf20_j1adxtyb.json" background="transparent" speed="1" autoplay></lottie-player>`,
@@ -189,12 +192,30 @@
           timer: 2000
         });
 
-        const filePath = `certificates/${encodeURIComponent(matched.file)}`;
-        const link = document.createElement("a");
-        link.href = filePath;
-        link.download = matched.file;
-        link.target = "_blank";
-        setTimeout(() => link.click(), 2000); // Delay for animation
+        // 🔽 Step 2: Trigger download after animation
+        setTimeout(() => {
+          const link = document.createElement("a");
+          link.href = filePath;
+          link.download = matched.file;
+          link.target = "_blank";
+          link.click();
+
+          // 🔽 Step 3: Show "Download Complete" popup with "Open" option
+          Swal.fire({
+            title: 'Download Complete!',
+            text: 'Do you want to open the certificate now?',
+            icon: 'success',
+            showCancelButton: true,
+            confirmButtonText: 'Open',
+            cancelButtonText: 'Close',
+            reverseButtons: true
+          }).then((result) => {
+            if (result.isConfirmed) {
+              window.open(filePath, '_blank');
+            }
+          });
+
+        }, 2000); // Wait for animation to complete
       });
     }
 
