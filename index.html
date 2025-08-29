@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Certificate Download</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
   <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
@@ -58,25 +61,33 @@
     .btn-reset:hover {
       background: #cd2029;
     }
-    #loading {
-      font-weight: 600;
-      color: #2b2d77;
-      margin-bottom: 15px;
+    #loadingLottie {
+      width: 120px;
+      margin: 0 auto 15px;
+    }
+    .select2-container--default .select2-selection--single {
+      height: 44px;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 15px;
+      border: 1px solid #ccc;
     }
     @media (max-width: 600px) { .container { padding: 20px; } }
   </style>
 </head>
 <body>
   <div class="container">
-    <img src="IMG_20250829_093134.png" alt="Site Logo" class="logo" />
+    <img src="IMG_20250829_093134.png" alt="Institute Logo" class="logo" />
     <h2>🎓 Certificate Download Portal</h2>
-    <div id="loading">Loading data...</div>
-    
+    <div id="loadingLottie">
+      <lottie-player src="https://assets1.lottiefiles.com/packages/lf20_usmfx6bp.json" background="transparent" speed="1" loop autoplay></lottie-player>
+    </div>
+
     <label for="studentId">Select Student ID:</label>
-    <select id="studentId"><option value="">-- Select ID --</option></select>
+    <select id="studentId" class="select2"><option value="">-- Select ID --</option></select>
 
     <label for="studentName">Select Student Name:</label>
-    <select id="studentName" disabled><option value="">-- Select Name --</option></select>
+    <select id="studentName" class="select2" disabled><option value="">-- Select Name --</option></select>
 
     <button id="downloadBtn" disabled>Download Certificate</button>
     <button id="resetBtn" class="btn-reset">Reset</button>
@@ -98,7 +109,15 @@
         })).filter(i => i.id && i.name && i.file);
       } catch(err) {
         console.error(err);
-        Swal.fire('Error', 'Data fetch failed', 'error');
+        const result = await Swal.fire({
+          title: 'Error loading data',
+          text: 'Unable to fetch certificate data. Check your connection.',
+          icon: 'error',
+          showCancelButton: true,
+          confirmButtonText: 'Retry',
+          cancelButtonText: 'Cancel'
+        });
+        if (result.isConfirmed) location.reload();
         return [];
       }
     }
@@ -112,27 +131,31 @@
       data.map(i => i.id).filter((v, i, a) => a.indexOf(v) === i)
         .forEach(id => idSelect.append(new Option(id, id)));
 
-      idSelect.onchange = () => {
-        const filtered = data.filter(i => i.id === idSelect.value);
+      $('#studentId').on('change', function () {
+        const selectedId = this.value.toLowerCase();
+        const filtered = data.filter(i => i.id.toLowerCase() === selectedId);
         nameSelect.innerHTML = '<option value="">-- Select Name --</option>';
         nameSelect.disabled = !filtered.length;
         filtered.forEach(item => nameSelect.append(new Option(item.name, item.name)));
 
-        // Auto-select if only one name
+        $('#studentName').val('').trigger('change');
         if (filtered.length === 1) {
-          nameSelect.value = filtered[0].name;
+          $('#studentName').val(filtered[0].name).trigger('change');
         }
 
         toggleButton();
-      };
+      });
 
-      nameSelect.onchange = toggleButton;
+      $('#studentName').on('change', toggleButton);
     }
 
     function toggleButton() {
-      const id = document.getElementById('studentId').value;
-      const name = document.getElementById('studentName').value;
-      const match = window.certData?.find(i => i.id === id && i.name === name);
+      const id = document.getElementById('studentId').value.toLowerCase();
+      const name = document.getElementById('studentName').value.toLowerCase();
+      const match = window.certData?.find(i =>
+        i.id.toLowerCase() === id &&
+        i.name.toLowerCase() === name
+      );
       document.getElementById('downloadBtn').disabled = !(id && name && match);
     }
 
@@ -140,9 +163,12 @@
       document.getElementById('downloadBtn').onclick = async () => {
         const id = document.getElementById('studentId').value;
         const name = document.getElementById('studentName').value;
-        const match = window.certData.find(i => i.id === id && i.name === name);
+        const match = window.certData.find(i =>
+          i.id.toLowerCase() === id.toLowerCase() &&
+          i.name.toLowerCase() === name.toLowerCase()
+        );
 
-        if (!match || match.id !== id || match.name !== name) {
+        if (!match) {
           Swal.fire('Mismatch', 'Selected ID and Name do not match.', 'error');
           return;
         }
@@ -166,7 +192,7 @@
           }).then(() => {
             const a = document.createElement('a');
             a.href = path;
-            a.download = match.file;
+            a.download = `${id}_${name}_Certificate.pdf`;
             a.target = '_blank';
             document.body.appendChild(a);
             a.click();
@@ -193,15 +219,14 @@
 
     function setupReset() {
       document.getElementById('resetBtn').onclick = () => {
-        document.getElementById('studentId').value = '';
-        document.getElementById('studentName').innerHTML = '<option value="">-- Select Name --</option>';
-        document.getElementById('studentName').disabled = true;
+        $('#studentId').val('').trigger('change');
+        $('#studentName').html('<option value="">-- Select Name --</option>').prop('disabled', true).val('').trigger('change');
         document.getElementById('downloadBtn').disabled = true;
       };
     }
 
     (async () => {
-      const loading = document.getElementById('loading');
+      const loading = document.getElementById('loadingLottie');
       const data = await fetchSheetData();
       loading.style.display = 'none';
 
@@ -209,11 +234,14 @@
         populateDropdowns(data);
         setupDownload();
         setupReset();
+
+        $('.select2').select2({
+          width: '100%',
+          placeholder: '-- Select --',
+          allowClear: true
+        });
       }
     })();
   </script>
 </body>
 </html>
-
-
-
