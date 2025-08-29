@@ -37,7 +37,7 @@
       max-width: 180px;
       margin-bottom: 3px;
     }
-    h2 { font-weight: 600; margin-top: 0; margin-bottom: 30px; }
+    h2 { font-weight: 600; margin-top: 0; margin-bottom: 20px; }
     label { display: block; margin: 10px 0 5px; text-align: left; }
     select, button {
       width: 100%; padding: 12px; margin-bottom: 15px;
@@ -50,6 +50,18 @@
     button:hover { background: #1d4ed8; }
     button:disabled { background: #ccc; cursor: not-allowed; }
     .lottie { height: 100px; margin-bottom: 20px; }
+    .btn-reset {
+      background: #f59e0b;
+      color: white;
+    }
+    .btn-reset:hover {
+      background: #d97706;
+    }
+    #loading {
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 15px;
+    }
     @media (max-width: 600px) { .container { padding: 20px; } }
   </style>
 </head>
@@ -57,11 +69,16 @@
   <div class="container">
     <img src="IMG_20250829_093134.png" alt="Site Logo" class="logo" />
     <h2>🎓 Certificate Download Portal</h2>
+    <div id="loading">Loading data...</div>
+    
     <label for="studentId">Select Student ID:</label>
     <select id="studentId"><option value="">-- Select ID --</option></select>
+
     <label for="studentName">Select Student Name:</label>
     <select id="studentName" disabled><option value="">-- Select Name --</option></select>
+
     <button id="downloadBtn" disabled>Download Certificate</button>
+    <button id="resetBtn" class="btn-reset">Reset</button>
   </div>
 
   <script>
@@ -91,7 +108,7 @@
       window.certData = data;
 
       idSelect.innerHTML = '<option value="">-- Select ID --</option>';
-      data.map(i => i.id).filter((v, i, a) => a.indexOf(v)===i)
+      data.map(i => i.id).filter((v, i, a) => a.indexOf(v) === i)
         .forEach(id => idSelect.append(new Option(id, id)));
 
       idSelect.onchange = () => {
@@ -99,6 +116,12 @@
         nameSelect.innerHTML = '<option value="">-- Select Name --</option>';
         nameSelect.disabled = !filtered.length;
         filtered.forEach(item => nameSelect.append(new Option(item.name, item.name)));
+
+        // Auto-select if only one name
+        if (filtered.length === 1) {
+          nameSelect.value = filtered[0].name;
+        }
+
         toggleButton();
       };
 
@@ -106,20 +129,23 @@
     }
 
     function toggleButton() {
-      const ok = document.getElementById('studentId').value && document.getElementById('studentName').value;
-      document.getElementById('downloadBtn').disabled = !ok;
+      const id = document.getElementById('studentId').value;
+      const name = document.getElementById('studentName').value;
+      const match = window.certData?.find(i => i.id === id && i.name === name);
+      document.getElementById('downloadBtn').disabled = !(id && name && match);
     }
 
     function setupDownload() {
       document.getElementById('downloadBtn').onclick = () => {
         const id = document.getElementById('studentId').value;
         const name = document.getElementById('studentName').value;
-        const match = window.certData.find(i => i.id===id && i.name===name);
+        const match = window.certData.find(i => i.id === id && i.name === name);
 
-        if (!match || !match.file) {
-          Swal.fire('Certificate Not Found', 'No file available for this selection.', 'error');
+        if (!match || match.id !== id || match.name !== name) {
+          Swal.fire('Mismatch', 'Selected ID and Name do not match.', 'error');
           return;
         }
+
         const path = `certificates/${encodeURIComponent(match.file)}`;
 
         Swal.fire({
@@ -147,20 +173,26 @@
       };
     }
 
+    function setupReset() {
+      document.getElementById('resetBtn').onclick = () => {
+        document.getElementById('studentId').value = '';
+        document.getElementById('studentName').innerHTML = '<option value="">-- Select Name --</option>';
+        document.getElementById('studentName').disabled = true;
+        document.getElementById('downloadBtn').disabled = true;
+      };
+    }
+
     (async () => {
+      const loading = document.getElementById('loading');
       const data = await fetchSheetData();
+      loading.style.display = 'none';
+
       if (data.length) {
         populateDropdowns(data);
         setupDownload();
+        setupReset();
       }
     })();
   </script>
 </body>
 </html>
-
-
-
-
-
-
-
