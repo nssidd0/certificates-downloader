@@ -5,11 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Certificate Download</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
   <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- jQuery (Required for Select2) -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <!-- Select2 CSS + JS -->
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
   <style>
     * { box-sizing: border-box; }
     body {
@@ -65,13 +70,6 @@
       width: 120px;
       margin: 0 auto 15px;
     }
-    .select2-container--default .select2-selection--single {
-      height: 44px;
-      border-radius: 8px;
-      padding: 6px 12px;
-      font-size: 15px;
-      border: 1px solid #ccc;
-    }
     @media (max-width: 600px) { .container { padding: 20px; } }
   </style>
 </head>
@@ -84,10 +82,10 @@
     </div>
 
     <label for="studentId">Select Student ID:</label>
-    <select id="studentId" class="select2"><option value="">-- Select ID --</option></select>
+    <select id="studentId"><option value="">-- Select ID --</option></select>
 
     <label for="studentName">Select Student Name:</label>
-    <select id="studentName" class="select2" disabled><option value="">-- Select Name --</option></select>
+    <select id="studentName" disabled><option value="">-- Select Name --</option></select>
 
     <button id="downloadBtn" disabled>Download Certificate</button>
     <button id="resetBtn" class="btn-reset">Reset</button>
@@ -131,29 +129,34 @@
       data.map(i => i.id).filter((v, i, a) => a.indexOf(v) === i)
         .forEach(id => idSelect.append(new Option(id, id)));
 
-      $('#studentId').on('change', function () {
-        const selectedId = this.value.toLowerCase();
+      // ✅ Initialize Select2 after populating
+      $(idSelect).select2({
+        placeholder: "-- Select ID --",
+        width: '100%'
+      });
+
+      idSelect.onchange = () => {
+        const selectedId = idSelect.value.toLowerCase();
         const filtered = data.filter(i => i.id.toLowerCase() === selectedId);
         nameSelect.innerHTML = '<option value="">-- Select Name --</option>';
         nameSelect.disabled = !filtered.length;
         filtered.forEach(item => nameSelect.append(new Option(item.name, item.name)));
 
-        $('#studentName').val('').trigger('change');
         if (filtered.length === 1) {
-          $('#studentName').val(filtered[0].name).trigger('change');
+          nameSelect.value = filtered[0].name;
         }
 
         toggleButton();
-      });
+      };
 
-      $('#studentName').on('change', toggleButton);
+      nameSelect.onchange = toggleButton;
     }
 
     function toggleButton() {
       const id = document.getElementById('studentId').value.toLowerCase();
       const name = document.getElementById('studentName').value.toLowerCase();
-      const match = window.certData?.find(i =>
-        i.id.toLowerCase() === id &&
+      const match = window.certData?.find(i => 
+        i.id.toLowerCase() === id && 
         i.name.toLowerCase() === name
       );
       document.getElementById('downloadBtn').disabled = !(id && name && match);
@@ -163,8 +166,8 @@
       document.getElementById('downloadBtn').onclick = async () => {
         const id = document.getElementById('studentId').value;
         const name = document.getElementById('studentName').value;
-        const match = window.certData.find(i =>
-          i.id.toLowerCase() === id.toLowerCase() &&
+        const match = window.certData.find(i => 
+          i.id.toLowerCase() === id.toLowerCase() && 
           i.name.toLowerCase() === name.toLowerCase()
         );
 
@@ -192,7 +195,7 @@
           }).then(() => {
             const a = document.createElement('a');
             a.href = path;
-            a.download = `${id}_${name}_Certificate.pdf`;
+            a.download = `${id}_${name}_Certificate.pdf`; // Customized filename
             a.target = '_blank';
             document.body.appendChild(a);
             a.click();
@@ -219,8 +222,9 @@
 
     function setupReset() {
       document.getElementById('resetBtn').onclick = () => {
-        $('#studentId').val('').trigger('change');
-        $('#studentName').html('<option value="">-- Select Name --</option>').prop('disabled', true).val('').trigger('change');
+        $('#studentId').val('').trigger('change'); // reset Select2
+        document.getElementById('studentName').innerHTML = '<option value="">-- Select Name --</option>';
+        document.getElementById('studentName').disabled = true;
         document.getElementById('downloadBtn').disabled = true;
       };
     }
@@ -234,12 +238,6 @@
         populateDropdowns(data);
         setupDownload();
         setupReset();
-
-        $('.select2').select2({
-          width: '100%',
-          placeholder: '-- Select --',
-          allowClear: true
-        });
       }
     })();
   </script>
