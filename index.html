@@ -3,54 +3,101 @@
 <head>
   <meta charset="UTF-8" />
   <title>Certificate Download</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
-      font-family: Arial, sans-serif;
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #dbeafe, #eff6ff);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
       padding: 20px;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+      border-radius: 15px;
+      padding: 30px;
+      width: 100%;
       max-width: 500px;
-      margin: auto;
       text-align: center;
+      animation: fadeIn 1s ease-in;
+    }
+    @keyframes fadeIn {
+      from {opacity: 0; transform: translateY(20px);}
+      to {opacity: 1; transform: translateY(0);}
     }
     img.logo {
-      max-width: 300px;
+      max-width: 180px;
+      margin-bottom: 10px;
     }
-    label, select, button {
-      margin: 10px 0;
+    h2 {
+      font-weight: 600;
+      margin-bottom: 30px;
+    }
+    label {
       display: block;
-      width: 100%;
-      padding: 10px;
       text-align: left;
+      margin: 10px 0 5px;
+      font-weight: 500;
+    }
+    select, button {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 15px;
     }
     button {
-      background-color: #007BFF;
+      background: #2563eb;
       color: white;
       border: none;
-      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    button:hover {
+      background: #1d4ed8;
     }
     button:disabled {
-      background-color: #ccc;
+      background: #ccc;
       cursor: not-allowed;
+    }
+    .lottie {
+      height: 100px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 600px) {
+      .container {
+        padding: 20px;
+      }
     }
   </style>
 </head>
 <body>
+  <div class="container">
+    <img src="Picsart_25-05-09_19-10-01-372.png" alt="Site Logo" class="logo" />
+    <h2>🎓 Certificate Download Portal</h2>
 
-  <!-- 🔽 Logo Added Here -->
-  <img src="Picsart_25-05-09_19-10-01-372.png" alt="Site Logo" class="logo" />
+    <label for="studentId">Select Student ID:</label>
+    <select id="studentId">
+      <option value="">-- Select ID --</option>
+    </select>
 
-  <h2>🎓 Certificate Download Portal</h2>
+    <label for="studentName">Select Student Name:</label>
+    <select id="studentName" disabled>
+      <option value="">-- Select Name --</option>
+    </select>
 
-  <label for="studentId">Select Student ID:</label>
-  <select id="studentId">
-    <option value="">-- Select ID --</option>
-  </select>
-
-  <label for="studentName">Select Student Name:</label>
-  <select id="studentName" disabled>
-    <option value="">-- Select Name --</option>
-  </select>
-
-  <button id="downloadBtn" disabled>Download Certificate</button>
+    <button id="downloadBtn" disabled>Download Certificate</button>
+  </div>
 
   <script>
     async function fetchSheetData() {
@@ -70,7 +117,6 @@
           file: r.c[2]?.v?.trim() || ""
         })).filter(item => item.id && item.name && item.file);
 
-        console.log("Fetched Data:", data);
         return data;
       } catch (error) {
         console.error("Error fetching sheet data:", error);
@@ -90,7 +136,6 @@
       window.certificateData = data;
 
       const uniqueIds = [...new Set(data.map(item => item.id))];
-
       uniqueIds.forEach(id => {
         const opt = document.createElement("option");
         opt.value = id;
@@ -131,20 +176,28 @@
 
         const matched = window.certificateData.find(i => i.id === id && i.name === name);
         if (!matched || !matched.file) {
-          alert("Invalid selection or certificate file missing!");
+          Swal.fire('Oops!', 'Invalid selection or certificate file missing!', 'error');
           return;
         }
+
+        // Show Lottie animation using SweetAlert
+        Swal.fire({
+          title: 'Downloading...',
+          html: `<lottie-player class="lottie" src="https://assets10.lottiefiles.com/packages/lf20_j1adxtyb.json" background="transparent" speed="1" autoplay></lottie-player>`,
+          showConfirmButton: false,
+          allowOutsideClick: false,
+          timer: 2000
+        });
 
         const filePath = `certificates/${encodeURIComponent(matched.file)}`;
         const link = document.createElement("a");
         link.href = filePath;
         link.download = matched.file;
         link.target = "_blank";
-        link.click();
+        setTimeout(() => link.click(), 2000); // Delay for animation
       });
     }
 
-    // Initialize the app
     (async () => {
       const data = await fetchSheetData();
       if (data.length) {
@@ -155,6 +208,3 @@
   </script>
 </body>
 </html>
-
-
-
