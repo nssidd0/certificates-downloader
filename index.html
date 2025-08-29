@@ -74,6 +74,18 @@
       margin: 0 auto 15px;
     }
     @media (max-width: 600px) { .container { padding: 20px; } }
+    
+    /* Accessibility: Screen reader only */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
   </style>
 </head>
 <body>
@@ -85,24 +97,50 @@
     </div>
 
     <label for="studentId">Select Student ID:</label>
-    <select id="studentId"><option value="">-- Select ID --</option></select>
+    <select id="studentId" aria-describedby="idHelp" aria-required="true" aria-live="polite"><option value="">-- Select ID --</option></select>
+    <small id="idHelp" class="sr-only">Choose your student ID from the list</small>
 
     <label for="studentName">Select Student Name:</label>
-    <select id="studentName" disabled><option value="">-- Select Name --</option></select>
+    <select id="studentName" disabled aria-describedby="nameHelp" aria-required="true" aria-live="polite"><option value="">-- Select Name --</option></select>
+    <small id="nameHelp" class="sr-only">Choose your student name from the list</small>
 
     <label for="uniqueCode">Enter Your Unique Code:</label>
-    <input type="text" id="uniqueCode" placeholder="Enter your unique code" disabled />
+    <input type="text" id="uniqueCode" placeholder="Enter your unique code" disabled aria-required="true" aria-describedby="codeHelp" />
+    <small id="codeHelp" class="sr-only">Enter the unique code provided to you</small>
 
     <button id="downloadBtn" disabled>Download Certificate</button>
     <button id="resetBtn" class="btn-reset">Reset</button>
   </div>
 
   <script>
+    // Disable dropdowns & inputs while loading data
+    function disableDropdownsDuringLoading() {
+      const idSelect = document.getElementById('studentId');
+      const nameSelect = document.getElementById('studentName');
+      const uniqueCodeInput = document.getElementById('uniqueCode');
+      const downloadBtn = document.getElementById('downloadBtn');
+
+      idSelect.disabled = true;
+      nameSelect.disabled = true;
+      uniqueCodeInput.disabled = true;
+      downloadBtn.disabled = true;
+
+      idSelect.innerHTML = '<option>Loading IDs...</option>';
+    }
+
+    // Enable ID dropdown after loading
+    function enableDropdownsAfterLoading() {
+      const idSelect = document.getElementById('studentId');
+      idSelect.disabled = false;
+      idSelect.innerHTML = '<option value="">-- Select ID --</option>';
+    }
+
     async function fetchSheetData() {
       const sheetID = "1dtaiWm-uRnQ1nvO3eMPYQ01No_znv-5_YKP6-akKoPs";
       const url = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?tqx=out:json`;
       try {
         const resp = await fetch(url);
+        if (!resp.ok) throw new Error('Network response not OK');
         const txt = await resp.text();
         const jsn = JSON.parse(txt.substring(txt.indexOf('(')+1, txt.lastIndexOf(')')));
         const rows = jsn.table.rows || [];
@@ -116,11 +154,13 @@
         console.error(err);
         const result = await Swal.fire({
           title: 'Error loading data',
-          text: 'Unable to fetch certificate data. Check your connection.',
+          html: 'Unable to fetch certificate data.<br>Check your internet or try again.',
           icon: 'error',
           showCancelButton: true,
           confirmButtonText: 'Retry',
-          cancelButtonText: 'Cancel'
+          cancelButtonText: 'Cancel',
+          allowOutsideClick: false,
+          footer: '<a href="https://support.google.com/docs/answer/6282736" target="_blank" rel="noopener noreferrer">Check Google Sheets API Status</a>'
         });
         if (result.isConfirmed) location.reload();
         return [];
@@ -207,40 +247,44 @@
         const path = `certificates/${encodeURIComponent(match.file)}`;
 
         try {
-          const response = await fetch(path, { method: 'HEAD' });
-
-          if (!response.ok) {
-            Swal.fire('Certificate Not Found', 'The certificate file is missing on the server.', 'error');
-            return;
-          }
-
+          // Show loading alert with Lottie spinner and check file existence
           Swal.fire({
-            title: 'Downloading...',
+            title: 'Preparing your download...',
             html: `<lottie-player class="lottie" src="https://assets10.lottiefiles.com/packages/lf20_j1adxtyb.json" background="transparent" speed="1" autoplay></lottie-player>`,
             showConfirmButton: false,
             allowOutsideClick: false,
-            timer: 1500
-          }).then(() => {
-            const a = document.createElement('a');
-            a.href = path;
-            a.download = `${id}_${name}_Certificate.pdf`; // Customized filename
-            a.target = '_blank';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            didOpen: async () => {
+              try {
+                const response = await fetch(path, { method: 'HEAD' });
+                if (!response.ok) throw new Error('File not found');
 
-            Swal.fire({
-              title: 'Downloaded',
-              text: 'Do you want to open it?',
-              icon: 'success',
-              showCancelButton: true,
-              confirmButtonText: 'Open',
-              cancelButtonText: 'Close'
-            }).then(res => {
-              if (res.isConfirmed) window.open(path, '_blank');
-            });
+                Swal.close(); // Close loading alert
+
+                const a = document.createElement('a');
+                a.href = path;
+                a.download = `${id}_${name}_Certificate.pdf`;
+                a.target = '_blank';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+
+                // After download
+                const result = await Swal.fire({
+                  title: 'Downloaded',
+                  text: 'Do you want to open it now?',
+                  icon: 'success',
+                  showCancelButton: true,
+                  confirmButtonText: 'Open',
+                  cancelButtonText: 'Close'
+                });
+                if (result.isConfirmed) {
+                  window.open(path, '_blank');
+                }
+              } catch (error) {
+                Swal.fire('Error', 'Certificate file not found or cannot be downloaded.', 'error');
+              }
+            }
           });
-
         } catch (err) {
           console.error(err);
           Swal.fire('Error', 'Something went wrong while checking the certificate.', 'error');
@@ -250,22 +294,21 @@
 
     function setupReset() {
       document.getElementById('resetBtn').onclick = () => {
-        $('#studentId').val('').trigger('change'); // reset Select2
+        document.getElementById('studentId').value = "";
+        $('#studentId').trigger('change'); // For select2 reset
         document.getElementById('studentName').innerHTML = '<option value="">-- Select Name --</option>';
         document.getElementById('studentName').disabled = true;
-
-        const uniqueCodeInput = document.getElementById('uniqueCode');
-        uniqueCodeInput.value = '';
-        uniqueCodeInput.disabled = true;
-
+        document.getElementById('uniqueCode').value = "";
+        document.getElementById('uniqueCode').disabled = true;
         document.getElementById('downloadBtn').disabled = true;
       };
     }
 
     (async () => {
-      const loading = document.getElementById('loadingLottie');
+      disableDropdownsDuringLoading();
       const data = await fetchSheetData();
-      loading.style.display = 'none';
+      enableDropdownsAfterLoading();
+      document.getElementById('loadingLottie').style.display = 'none';
 
       if (data.length) {
         populateDropdowns(data);
