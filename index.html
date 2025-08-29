@@ -1,4 +1,3 @@
-<!-- 🔽 Ye puri file updated hai: -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,9 +7,7 @@
   <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: 'Poppins', sans-serif;
@@ -176,14 +173,14 @@
         const name = document.getElementById("studentName").value.trim();
 
         const matched = window.certificateData.find(i => i.id === id && i.name === name);
-        if (!matched || !matched.file) {
-          Swal.fire('Oops!', 'Invalid selection or certificate file missing!', 'error');
+        if (!matched) {
+          Swal.fire('Oops!', 'Invalid selection or certificate info missing!', 'error');
           return;
         }
 
         const filePath = `certificates/${encodeURIComponent(matched.file)}`;
+        const isPDF = matched.file.toLowerCase().endsWith('.pdf');
 
-        // 🔽 Step 1: Show download animation
         Swal.fire({
           title: 'Downloading...',
           html: `<lottie-player class="lottie" src="https://assets10.lottiefiles.com/packages/lf20_j1adxtyb.json" background="transparent" speed="1" autoplay></lottie-player>`,
@@ -192,30 +189,36 @@
           timer: 2000
         });
 
-        // 🔽 Step 2: Trigger download after animation
         setTimeout(() => {
-          const link = document.createElement("a");
-          link.href = filePath;
-          link.download = matched.file;
-          link.target = "_blank";
-          link.click();
+          if (!matched.file || !isPDF) {
+            Swal.fire({
+              icon: 'error',
+              title: 'Certificate Not Found',
+              text: 'The certificate file is missing or not available.',
+              confirmButtonText: 'Close'
+            });
+          } else {
+            const link = document.createElement("a");
+            link.href = filePath;
+            link.download = matched.file;
+            link.target = "_blank";
+            link.click();
 
-          // 🔽 Step 3: Show "Download Complete" popup with "Open" option
-          Swal.fire({
-            title: 'Download Complete!',
-            text: 'Do you want to open the certificate now?',
-            icon: 'success',
-            showCancelButton: true,
-            confirmButtonText: 'Open',
-            cancelButtonText: 'Close',
-            reverseButtons: true
-          }).then((result) => {
-            if (result.isConfirmed) {
-              window.open(filePath, '_blank');
-            }
-          });
-
-        }, 2000); // Wait for animation to complete
+            Swal.fire({
+              title: 'Download Complete!',
+              text: 'Do you want to open the certificate now?',
+              icon: 'success',
+              showCancelButton: true,
+              confirmButtonText: 'Open',
+              cancelButtonText: 'Close',
+              reverseButtons: true
+            }).then((result) => {
+              if (result.isConfirmed) {
+                window.open(filePath, '_blank');
+              }
+            });
+          }
+        }, 2000);
       });
     }
 
