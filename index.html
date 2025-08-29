@@ -136,7 +136,7 @@
     }
 
     function setupDownload() {
-      document.getElementById('downloadBtn').onclick = () => {
+      document.getElementById('downloadBtn').onclick = async () => {
         const id = document.getElementById('studentId').value;
         const name = document.getElementById('studentName').value;
         const match = window.certData.find(i => i.id === id && i.name === name);
@@ -148,28 +148,45 @@
 
         const path = `certificates/${encodeURIComponent(match.file)}`;
 
-        Swal.fire({
-          title: 'Downloading...',
-          html: `<lottie-player class="lottie" src="https://assets10.lottiefiles.com/packages/lf20_j1adxtyb.json" background="transparent" speed="1" autoplay></lottie-player>`,
-          showConfirmButton: false, allowOutsideClick: false, timer: 1500
-        }).then(() => {
-          const a = document.createElement('a');
-          a.href = path; a.download = match.file; a.target = '_blank';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
+        try {
+          const response = await fetch(path, { method: 'HEAD' });
+
+          if (!response.ok) {
+            Swal.fire('Certificate Not Found', 'The certificate file is missing on the server.', 'error');
+            return;
+          }
 
           Swal.fire({
-            title: 'Downloaded',
-            text: 'Do you want to open it?',
-            icon: 'success',
-            showCancelButton: true,
-            confirmButtonText: 'Open',
-            cancelButtonText: 'Close'
-          }).then(res => {
-            if (res.isConfirmed) window.open(path, '_blank');
+            title: 'Downloading...',
+            html: `<lottie-player class="lottie" src="https://assets10.lottiefiles.com/packages/lf20_j1adxtyb.json" background="transparent" speed="1" autoplay></lottie-player>`,
+            showConfirmButton: false,
+            allowOutsideClick: false,
+            timer: 1500
+          }).then(() => {
+            const a = document.createElement('a');
+            a.href = path;
+            a.download = match.file;
+            a.target = '_blank';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            Swal.fire({
+              title: 'Downloaded',
+              text: 'Do you want to open it?',
+              icon: 'success',
+              showCancelButton: true,
+              confirmButtonText: 'Open',
+              cancelButtonText: 'Close'
+            }).then(res => {
+              if (res.isConfirmed) window.open(path, '_blank');
+            });
           });
-        });
+
+        } catch (err) {
+          console.error(err);
+          Swal.fire('Error', 'Something went wrong while checking the certificate.', 'error');
+        }
       };
     }
 
