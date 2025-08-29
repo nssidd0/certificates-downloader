@@ -27,73 +27,40 @@
       width: 100%;
       max-width: 500px;
       text-align: center;
-      animation: fadeIn 1s ease-in;
+      animation: fadeIn 0.8s ease-in;
     }
     @keyframes fadeIn {
       from {opacity: 0; transform: translateY(20px);}
       to {opacity: 1; transform: translateY(0);}
     }
     img.logo {
-      max-width: 180px;
+      max-width: 160px;
       margin-bottom: 10px;
     }
-    h2 {
-      font-weight: 600;
-      margin-bottom: 30px;
-    }
-    label {
-      display: block;
-      text-align: left;
-      margin: 10px 0 5px;
-      font-weight: 500;
-    }
+    h2 { font-weight: 600; margin-bottom: 20px; }
+    label { display: block; margin: 10px 0 5px; text-align: left; }
     select, button {
-      width: 100%;
-      padding: 12px;
-      margin-bottom: 15px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      font-size: 15px;
+      width: 100%; padding: 12px; margin-bottom: 15px;
+      border-radius: 8px; border: 1px solid #ccc; font-size: 15px;
     }
     button {
-      background: #2563eb;
-      color: white;
-      border: none;
-      transition: background 0.3s ease;
+      background: #2563eb; color: white;
+      border: none; transition: background 0.3s;
     }
-    button:hover {
-      background: #1d4ed8;
-    }
-    button:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-    }
-    .lottie {
-      height: 100px;
-      margin-bottom: 20px;
-    }
-    @media (max-width: 600px) {
-      .container {
-        padding: 20px;
-      }
-    }
+    button:hover { background: #1d4ed8; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    .lottie { height: 100px; margin-bottom: 20px; }
+    @media (max-width: 600px) { .container { padding: 20px; } }
   </style>
 </head>
 <body>
   <div class="container">
     <img src="Picsart_25-05-09_19-10-01-372.png" alt="Site Logo" class="logo" />
     <h2>🎓 Certificate Download Portal</h2>
-
     <label for="studentId">Select Student ID:</label>
-    <select id="studentId">
-      <option value="">-- Select ID --</option>
-    </select>
-
+    <select id="studentId"><option value="">-- Select ID --</option></select>
     <label for="studentName">Select Student Name:</label>
-    <select id="studentName" disabled>
-      <option value="">-- Select Name --</option>
-    </select>
-
+    <select id="studentName" disabled><option value="">-- Select Name --</option></select>
     <button id="downloadBtn" disabled>Download Certificate</button>
   </div>
 
@@ -101,125 +68,83 @@
     async function fetchSheetData() {
       const sheetID = "1dtaiWm-uRnQ1nvO3eMPYQ01No_znv-5_YKP6-akKoPs";
       const url = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?tqx=out:json`;
-
       try {
-        const response = await fetch(url);
-        const text = await response.text();
-        const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
-        const json = JSON.parse(jsonStr);
-        const rows = json?.table?.rows || [];
-
-        const data = rows.map(r => ({
+        const resp = await fetch(url);
+        const txt = await resp.text();
+        const jsn = JSON.parse(txt.substring(txt.indexOf('(')+1, txt.lastIndexOf(')')));
+        const rows = jsn.table.rows || [];
+        return rows.map(r => ({
           id: r.c[0]?.v?.trim() || "",
           name: r.c[1]?.v?.trim() || "",
           file: r.c[2]?.v?.trim() || ""
-        })).filter(item => item.id && item.name && item.file);
-
-        return data;
-      } catch (error) {
-        console.error("Error fetching sheet data:", error);
-        alert("Failed to fetch data from Google Sheet.");
+        })).filter(i => i.id && i.name && i.file);
+      } catch(err) {
+        console.error(err);
+        Swal.fire('Error', 'Data fetch failed', 'error');
         return [];
       }
     }
 
     function populateDropdowns(data) {
-      const idSelect = document.getElementById("studentId");
-      const nameSelect = document.getElementById("studentName");
+      const idSelect = document.getElementById('studentId');
+      const nameSelect = document.getElementById('studentName');
+      window.certData = data;
 
       idSelect.innerHTML = '<option value="">-- Select ID --</option>';
-      nameSelect.innerHTML = '<option value="">-- Select Name --</option>';
-      nameSelect.disabled = true;
+      data.map(i => i.id).filter((v, i, a) => a.indexOf(v)===i)
+        .forEach(id => idSelect.append(new Option(id, id)));
 
-      window.certificateData = data;
-
-      const uniqueIds = [...new Set(data.map(item => item.id))];
-      uniqueIds.forEach(id => {
-        const opt = document.createElement("option");
-        opt.value = id;
-        opt.textContent = id;
-        idSelect.appendChild(opt);
-      });
-
-      idSelect.addEventListener("change", () => {
-        const selectedId = idSelect.value;
-        const filtered = data.filter(item => item.id === selectedId);
-
+      idSelect.onchange = () => {
+        const filtered = data.filter(i => i.id === idSelect.value);
         nameSelect.innerHTML = '<option value="">-- Select Name --</option>';
-        nameSelect.disabled = filtered.length === 0;
+        nameSelect.disabled = !filtered.length;
+        filtered.forEach(item => nameSelect.append(new Option(item.name, item.name)));
+        toggleButton();
+      };
 
-        filtered.forEach(item => {
-          const opt = document.createElement("option");
-          opt.value = item.name;
-          opt.textContent = item.name;
-          nameSelect.appendChild(opt);
-        });
-
-        toggleDownloadBtn();
-      });
-
-      nameSelect.addEventListener("change", toggleDownloadBtn);
+      nameSelect.onchange = toggleButton;
     }
 
-    function toggleDownloadBtn() {
-      const idVal = document.getElementById("studentId").value;
-      const nameVal = document.getElementById("studentName").value;
-      document.getElementById("downloadBtn").disabled = !(idVal && nameVal);
+    function toggleButton() {
+      const ok = document.getElementById('studentId').value && document.getElementById('studentName').value;
+      document.getElementById('downloadBtn').disabled = !ok;
     }
 
     function setupDownload() {
-      document.getElementById("downloadBtn").addEventListener("click", () => {
-        const id = document.getElementById("studentId").value.trim();
-        const name = document.getElementById("studentName").value.trim();
+      document.getElementById('downloadBtn').onclick = () => {
+        const id = document.getElementById('studentId').value;
+        const name = document.getElementById('studentName').value;
+        const match = window.certData.find(i => i.id===id && i.name===name);
 
-        const matched = window.certificateData.find(i => i.id === id && i.name === name);
-        if (!matched) {
-          Swal.fire('Oops!', 'Invalid selection or certificate info missing!', 'error');
+        if (!match || !match.file) {
+          Swal.fire('Certificate Not Found', 'No file available for this selection.', 'error');
           return;
         }
-
-        const filePath = `certificates/${encodeURIComponent(matched.file)}`;
-        const isPDF = matched.file.toLowerCase().endsWith('.pdf');
+        const path = `certificates/${encodeURIComponent(match.file)}`;
 
         Swal.fire({
           title: 'Downloading...',
           html: `<lottie-player class="lottie" src="https://assets10.lottiefiles.com/packages/lf20_j1adxtyb.json" background="transparent" speed="1" autoplay></lottie-player>`,
-          showConfirmButton: false,
-          allowOutsideClick: false,
-          timer: 2000
+          showConfirmButton: false, allowOutsideClick: false, timer: 1500
+        }).then(() => {
+          const a = document.createElement('a');
+          a.href = path; a.download = match.file; a.target = '_blank';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+
+          Swal.fire({
+            title: 'Downloaded',
+            text: 'Do you want to open it?',
+            icon: 'success',
+            showCancelButton: true,
+            confirmButtonText: 'Open',
+            cancelButtonText: 'Close'
+          }).then(res => {
+            if (res.isConfirmed) window.open(path, '_blank');
+          });
         });
-
-        setTimeout(() => {
-          if (!matched.file || !isPDF) {
-            Swal.fire({
-              icon: 'error',
-              title: 'Certificate Not Found',
-              text: 'The certificate file is missing or not available.',
-              confirmButtonText: 'Close'
-            });
-          } else {
-            const link = document.createElement("a");
-            link.href = filePath;
-            link.download = matched.file;
-            link.target = "_blank";
-            link.click();
-
-            Swal.fire({
-              title: 'Download Complete!',
-              text: 'Do you want to open the certificate now?',
-              icon: 'success',
-              showCancelButton: true,
-              confirmButtonText: 'Open',
-              cancelButtonText: 'Close',
-              reverseButtons: true
-            }).then((result) => {
-              if (result.isConfirmed) {
-                window.open(filePath, '_blank');
-              }
-            });
-          }
-        }, 2000);
-      });
+      };
     }
 
     (async () => {
